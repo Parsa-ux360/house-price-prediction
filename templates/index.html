@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Price Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{url_for('static' , filename='icon.png')}}">
+</head>
+<body>
+    <div class="card">
+
+        <div class="card-header">
+            <h1>House Price Prediction</h1>
+            <p>California Housing Dataset &mdash; ML model (Random Forest)</p>
+        </div>
+
+        <div class="card-body">
+
+            <!-- Location -->
+            <div class="section">
+                <p class="section-label">Location</p>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="city">City</label>
+                        <select id="city">
+                            {% for key, city in cities.items() %}
+                            <option value="{{ key }}">{{ city.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="area_level">Area level</label>
+                        <select id="area_level">
+                            <option value="luxury">Luxury</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="cheap">Affordable</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Building -->
+            <div class="section">
+                <p class="section-label">Building details</p>
+
+                <div class="field">
+                    <label for="house_age">Building age (years)</label>
+                    <input type="number" id="house_age" placeholder="e.g. 20" min="1" max="52">
+                    <span class="hint">Between 1 and 52</span>
+                    <span class="error-msg" id="err_age">Please enter a valid age (1–52).</span>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label for="ave_rooms">Total rooms</label>
+                        <input type="number" id="ave_rooms" placeholder="e.g. 5" min="1">
+                        <span class="hint">Living room + kitchen + bedrooms</span>
+                        <span class="error-msg" id="err_rooms">Enter at least 1 room.</span>
+                    </div>
+
+                    <div class="field">
+                        <label for="ave_bedrms">Bedrooms</label>
+                        <input type="number" id="ave_bedrms" placeholder="e.g. 2" min="1">
+                        <span class="error-msg" id="err_beds">Enter at least 1 bedroom.</span>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn" id="predictBtn" onclick="predict()">Predict price</button>
+
+            <!-- Result -->
+            <div class="result" id="result">
+                <div class="result-header">Prediction result</div>
+                <div class="result-body">
+                    <p class="result-city" id="result-city"></p>
+                    <div class="result-mid" id="result-mid"></div>
+                    <div class="result-range-label">Estimated range</div>
+                    <div class="result-range" id="result-range"></div>
+                    <p class="result-note">Based on 1990 California data &mdash; prices reflect historical values.</p>
+                </div>
+            </div>
+
+        </div>
+        <div class="card-footer">
+            Built by <strong>Parsa Shahi</strong> &mdash; California Housing ML Project
+        </div>
+    </div>
+
+    <script>
+        function validate() {
+            let ok = true;
+
+            const age   = document.getElementById('house_age');
+            const rooms = document.getElementById('ave_rooms');
+            const beds  = document.getElementById('ave_bedrms');
+
+            const fields = [
+                { el: age,   err: 'err_age',   check: v => v >= 1 && v <= 52 },
+                { el: rooms, err: 'err_rooms',  check: v => v >= 1 },
+                { el: beds,  err: 'err_beds',   check: v => v >= 1 },
+            ];
+
+            fields.forEach(({ el, err, check }) => {
+                const val = parseFloat(el.value);
+                const errEl = document.getElementById(err);
+                if (!el.value || isNaN(val) || !check(val)) {
+                    el.classList.add('error');
+                    errEl.style.display = 'block';
+                    ok = false;
+                } else {
+                    el.classList.remove('error');
+                    errEl.style.display = 'none';
+                }
+            });
+
+            return ok;
+        }
+
+        async function predict() {
+            if (!validate()) return;
+
+            const btn = document.getElementById('predictBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Predicting <span class="spinner"></span>';
+
+            const data = {
+                city:       document.getElementById('city').value,
+                area_level: document.getElementById('area_level').value,
+                house_age:  document.getElementById('house_age').value,
+                ave_rooms:  document.getElementById('ave_rooms').value,
+                ave_bedrms: document.getElementById('ave_bedrms').value,
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify(data)
+                });
+
+                const res = await response.json();
+
+                const fmt   = n => '$' + Math.round(n).toLocaleString('en-US');
+                const mid   = fmt(res.mid);
+                const lower = fmt(res.lower);
+                const upper = fmt(res.upper);
+
+                document.getElementById('result-city').textContent  = res.city_name;
+                document.getElementById('result-mid').textContent  = mid;
+                document.getElementById('result-range').innerHTML   =
+                    `<span>${lower}</span><span class="sep">—</span><span>${upper}</span>`;
+
+                document.getElementById('result').style.display = 'block';
+
+            } catch (e) {
+                alert('Something went wrong. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Predict price';
+            }
+        }
+
+        // Clear error on input
+        ['house_age','ave_rooms','ave_bedrms'].forEach(id => {
+            document.getElementById(id).addEventListener('input', function() {
+                this.classList.remove('error');
+            });
+        });
+    </script>
+</body>
+</html>
