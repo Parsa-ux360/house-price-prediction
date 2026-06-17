@@ -39,7 +39,7 @@ joblib.dump(model , 'model.pkl')
 print('Model saved successfully ✅')
 
 AREA_LEVELS = {
-    'laxury' : 12.0,
+    'luxury' : 12.0,
     'medium' : 7.0,
     'cheap' : 2.5,
 }
